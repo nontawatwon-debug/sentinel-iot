@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTINEL — IoT Machine Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#050A0E;--surface:#0A1520;--surface2:#0F1E2E;--border:#1A3045;--border-bright:#1E4060;
+  --cyan:#00E5FF;--cyan-dim:#00A8BB;--cyan-glow:rgba(0,229,255,0.15);
+  --amber:#FFB300;--amber-dim:#CC8F00;--red:#FF3D3D;--red-dim:#CC1F1F;
+  --green:#00FF88;--green-dim:#00CC6A;--text:#C8DCE8;--text-dim:#5A7A90;--text-bright:#E8F4FF;
+  --grid-color:rgba(0,229,255,0.03);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--grid-color) 1px,transparent 1px),linear-gradient(90deg,var(--grid-color) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:0;}
+.page-wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 16px 60px;}
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:24px;gap:12px;flex-wrap:wrap;}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:40px;height:40px;border:1.5px solid var(--cyan);display:flex;align-items:center;justify-content:center;clip-path:polygon(8px 0%,100% 0%,100% calc(100% - 8px),calc(100% - 8px) 100%,0% 100%,0% 8px);background:var(--cyan-glow);}
+.logo-icon svg{width:20px;height:20px;}
+.logo-text{font-family:'Share Tech Mono',monospace;}
+.logo-title{font-size:1.4rem;color:var(--cyan);letter-spacing:4px;line-height:1;}
+.logo-sub{font-size:0.6rem;color:var(--text-dim);letter-spacing:3px;margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:20px;}
+.sys-status{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--text-dim);}
+.sys-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.live-clock{font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--cyan-dim);letter-spacing:1px;}
+.section-label{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--cyan-dim);letter-spacing:3px;text-transform:uppercase;display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-bright),transparent);}
+.metrics-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
+@media(max-width:600px){.metrics-row{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:380px){.metrics-row{grid-template-columns:1fr;}}
+.metric-card{background:var(--surface);border:1px solid var(--border);padding:14px 16px;position:relative;overflow:hidden;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--cyan),transparent);opacity:0.5;}
+.metric-label{font-size:0.65rem;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;font-family:'Share Tech Mono',monospace;}
+.metric-value{font-family:'Share Tech Mono',monospace;font-size:1.5rem;font-weight:700;color:var(--cyan);line-height:1;}
+.metric-unit{font-size:0.75rem;color:var(--text-dim);margin-left:3px;}
+.metric-bar{margin-top:8px;height:2px;background:var(--border);border-radius:2px;overflow:hidden;}
+.metric-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));transition:width 0.8s ease;}
+.main-grid{display:grid;grid-template-columns:1fr 360px;gap:20px;}
+@media(max-width:900px){.main-grid{grid-template-columns:1fr;}}
+.panel{background:var(--surface);border:1px solid var(--border);padding:20px;position:relative;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));}
+.panel-title{font-family:'Barlow Condensed',sans-serif;font-size:0.75rem;font-weight:600;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+.panel-title-dot{width:5px;height:5px;background:var(--cyan);box-shadow:0 0 6px var(--cyan);}
+.form-row{margin-bottom:16px;}
+.form-label{font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;display:flex;justify-content:space-between;}
+.form-hint{color:var(--border-bright);font-size:0.6rem;}
+.type-group{display:flex;gap:8px;}
+.type-btn{flex:1;padding:9px 0;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:0.75rem;cursor:pointer;transition:all 0.2s;letter-spacing:2px;clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);}
+.type-btn:hover{border-color:var(--cyan-dim);color:var(--cyan-dim);}
+.type-btn.active{background:var(--cyan-glow);border-color:var(--cyan);color:var(--cyan);box-shadow:inset 0 0 12px var(--cyan-glow);}
+.range-input{width:100%;appearance:none;height:3px;background:var(--border-bright);outline:none;cursor:pointer;border-radius:2px;}
+.range-input::-webkit-slider-thumb{appearance:none;width:16px;height:16px;background:var(--bg);border:2px solid var(--cyan);cursor:pointer;box-shadow:0 0 8px var(--cyan);clip-path:polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%);}
+.range-labels{display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--text-dim);margin-top:4px;}
+.value-display{font-family:'Share Tech Mono',monospace;font-size:0.9rem;color:var(--cyan);float:right;margin-top:-20px;}
+.analyze-btn{width:100%;padding:16px;margin-top:8px;background:transparent;border:1px solid var(--cyan);color:var(--cyan);font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:all 0.3s;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);}
+.analyze-btn::before{content:'';position:absolute;inset:0;background:var(--cyan-glow);transform:scaleX(0);transform-origin:left;transition:transform 0.3s ease;}
+.analyze-btn:hover::before{transform:scaleX(1);}
+.analyze-btn:hover{box-shadow:0 0 20px var(--cyan-glow),inset 0 0 20px var(--cyan-glow);}
+.analyze-btn:active{transform:scale(0.98);}
+.analyze-btn span{position:relative;z-index:1;}
+.analyze-btn.loading{pointer-events:none;opacity:0.7;}
+.risk-display{background:var(--surface2);border:1px solid var(--border);padding:24px;text-align:center;position:relative;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));transition:border-color 0.5s,box-shadow 0.5s;}
+.risk-display.normal{border-color:var(--green);box-shadow:0 0 30px rgba(0,255,136,0.08);}
+.risk-display.warning{border-color:var(--amber);box-shadow:0 0 30px rgba(255,179,0,0.1);}
+.risk-display.danger{border-color:var(--red);box-shadow:0 0 30px rgba(255,61,61,0.12);animation:danger-pulse 2s ease-in-out infinite;}
+@keyframes danger-pulse{0%,100%{box-shadow:0 0 30px rgba(255,61,61,0.12)}50%{box-shadow:0 0 50px rgba(255,61,61,0.25)}}
+.risk-label{font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:3px;color:var(--text-dim);margin-bottom:12px;}
+.risk-percent{font-family:'Barlow Condensed',sans-serif;font-size:4.5rem;font-weight:900;line-height:1;transition:color 0.5s;color:var(--text-dim);}
+.risk-percent.normal{color:var(--green);text-shadow:0 0 30px rgba(0,255,136,0.4);}
+.risk-percent.warning{color:var(--amber);text-shadow:0 0 30px rgba(255,179,0,0.4);}
+.risk-percent.danger{color:var(--red);text-shadow:0 0 30px rgba(255,61,61,0.4);}
+.risk-status{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:4px;margin-top:6px;transition:color 0.5s;}
+.risk-bar-wrap{margin-top:16px;height:4px;background:var(--border);border-radius:4px;overflow:hidden;}
+.risk-bar{height:100%;border-radius:4px;width:0%;transition:width 1s cubic-bezier(0.22,1,0.36,1),background 0.5s;}
+.risk-bar.normal{background:linear-gradient(90deg,var(--green-dim),var(--green));}
+.risk-bar.warning{background:linear-gradient(90deg,var(--amber-dim),var(--amber));}
+.risk-bar.danger{background:linear-gradient(90deg,var(--red-dim),var(--red));}
+.risk-warnings{margin-top:12px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--amber);line-height:1.8;text-align:left;min-height:20px;}
+.chart-panel{margin-bottom:20px;}
+.wave-canvas{width:100%;height:120px;display:block;}
+.breakdown{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+@media(max-width:500px){.breakdown{grid-template-columns:1fr;}}
+.breakdown-item{background:var(--surface);border:1px solid var(--border);padding:10px 12px;clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);}
+.breakdown-name{font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:1px;color:var(--text-dim);margin-bottom:5px;}
+.breakdown-bar-wrap{height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.breakdown-bar{height:100%;border-radius:2px;transition:width 1s cubic-bezier(0.22,1,0.36,1);}
+.breakdown-val{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--text);float:right;margin-top:-14px;}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.footer-text{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--text-dim);letter-spacing:2px;}
+.fade-in{animation:fadeIn 0.6s ease both;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.fade-in-1{animation-delay:0.05s;}.fade-in-2{animation-delay:0.12s;}.fade-in-3{animation-delay:0.22s;}
+.corner-tl,.corner-br{position:absolute;width:10px;height:10px;border-color:var(--cyan);opacity:0.4;}
+.corner-tl{top:8px;left:8px;border-top:1px solid;border-left:1px solid;}
+.corner-br{bottom:8px;right:8px;border-bottom:1px solid;border-right:1px solid;}
+@media(max-width:600px){.risk-percent{font-size:3.5rem;}.panel{padding:16px;}}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <header class="fade-in">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 20 20" fill="none" stroke="#00E5FF" stroke-width="1.5">
+          <circle cx="10" cy="10" r="3"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3"/>
+          <circle cx="10" cy="10" r="7" stroke-dasharray="2 3" opacity="0.4"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <div class="logo-title">SENTINEL</div>
+        <div class="logo-sub">IoT Machine Monitor v2.4</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="sys-status"><div class="sys-dot"></div><span>SYSTEM ONLINE</span></div>
+      <div class="live-clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <div class="section-label fade-in fade-in-1">LIVE SENSOR FEED</div>
+  <div class="metrics-row fade-in fade-in-1">
+    <div class="metric-card"><div class="corner-tl"></div><div class="metric-label">Air Temp</div><div class="metric-value" id="m-air">--<span class="metric-unit">K</span></div><div class="metric-bar"><div class="metric-bar-fill" id="mb-air" style="width:0%"></div></div></div>
+    <div class="metric-card"><div class="corner-tl"></div><div class="metric-label">Process Temp</div><div class="metric-value" id="m-proc">--<span class="metric-unit">K</span></div><div class="metric-bar"><div class="metric-bar-fill" id="mb-proc" style="width:0%"></div></div></div>
+    <div class="metric-card"><div class="corner-tl"></div><div class="metric-label">Rotat. Speed</div><div class="metric-value" id="m-rpm">--<span class="metric-unit">rpm</span></div><div class="metric-bar"><div class="metric-bar-fill" id="mb-rpm" style="width:0%"></div></div></div>
+    <div class="metric-card"><div class="corner-tl"></div><div class="metric-label">Torque</div><div class="metric-value" id="m-torque">--<span class="metric-unit">Nm</span></div><div class="metric-bar"><div class="metric-bar-fill" id="mb-torque" style="width:0%"></div></div></div>
+    <div class="metric-card"><div class="corner-tl"></div><div class="metric-label">Tool Wear</div><div class="metric-value" id="m-wear">--<span class="metric-unit">min</span></div><div class="metric-bar"><div class="metric-bar-fill" id="mb-wear" style="width:0%"></div></div></div>
+    <div class="metric-card"><div class="corner-tl"></div><div class="metric-label">Risk Score</div><div class="metric-value" id="m-risk" style="color:var(--text-dim)">--<span class="metric-unit">%</span></div><div class="metric-bar"><div class="metric-bar-fill" id="mb-risk" style="width:0%"></div></div></div>
+  </div>
+
+  <div class="chart-panel fade-in fade-in-2">
+    <div class="section-label">TORQUE WAVEFORM — REAL TIME</div>
+    <canvas class="wave-canvas" id="waveCanvas"></canvas>
+  </div>
+
+  <div class="main-grid">
+    <div class="panel fade-in fade-in-2">
+      <div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="panel-title"><div class="panel-title-dot"></div>SENSOR INPUT PARAMETERS</div>
+      <div class="form-row">
+        <div class="form-label">MACHINE TYPE<span class="form-hint">L=งานเบา  M=งานกลาง  H=งานหนัก</span></div>
+        <div class="type-group">
+          <button class="type-btn" data-val="0" onclick="setType(this)">L</button>
+          <button class="type-btn active" data-val="1" onclick="setType(this)">M</button>
+          <button class="type-btn" data-val="2" onclick="setType(this)">H</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">AIR TEMPERATURE<span class="form-hint">295–315 K</span></div>
+        <input type="range" class="range-input" id="sl-air" min="295" max="315" step="0.1" value="300.1" oninput="updateSlider('air',this.value)">
+        <span class="value-display" id="dv-air">300.1 K</span>
+        <div class="range-labels"><span>295 K</span><span>315 K</span></div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">PROCESS TEMPERATURE<span class="form-hint">305–325 K</span></div>
+        <input type="range" class="range-input" id="sl-proc" min="305" max="325" step="0.1" value="310.1" oninput="updateSlider('proc',this.value)">
+        <span class="value-display" id="dv-proc">310.1 K</span>
+        <div class="range-labels"><span>305 K</span><span>325 K</span></div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">ROTATIONAL SPEED<span class="form-hint">1168–2886 rpm</span></div>
+        <input type="range" class="range-input" id="sl-rpm" min="1168" max="2886" step="1" value="1503" oninput="updateSlider('rpm',this.value)">
+        <span class="value-display" id="dv-rpm">1503 rpm</span>
+        <div class="range-labels"><span>1168</span><span>2886 rpm</span></div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">TORQUE<span class="form-hint">3.8–76.6 Nm</span></div>
+        <input type="range" class="range-input" id="sl-torque" min="3.8" max="76.6" step="0.1" value="40.1" oninput="updateSlider('torque',this.value)">
+        <span class="value-display" id="dv-torque">40.1 Nm</span>
+        <div class="range-labels"><span>3.8</span><span>76.6 Nm</span></div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">TOOL WEAR<span class="form-hint">0–253 min</span></div>
+        <input type="range" class="range-input" id="sl-wear" min="0" max="253" step="1" value="100" oninput="updateSlider('wear',this.value)">
+        <span class="value-display" id="dv-wear">100 min</span>
+        <div class="range-labels"><span>0</span><span>253 min</span></div>
+      </div>
+      <button class="analyze-btn" id="analyzeBtn" onclick="analyze()"><span id="btn-text">⬡ ANALYZE RISK</span></button>
+      <div class="breakdown" id="breakdown" style="display:none">
+        <div class="breakdown-item"><div class="breakdown-name">TORQUE FACTOR</div><div class="breakdown-val" id="bd-torque">0%</div><div class="breakdown-bar-wrap"><div class="breakdown-bar" id="bb-torque" style="width:0%;background:var(--cyan)"></div></div></div>
+        <div class="breakdown-item"><div class="breakdown-name">SPEED FACTOR</div><div class="breakdown-val" id="bd-rpm">0%</div><div class="breakdown-bar-wrap"><div class="breakdown-bar" id="bb-rpm" style="width:0%;background:var(--cyan)"></div></div></div>
+        <div class="breakdown-item"><div class="breakdown-name">WEAR FACTOR</div><div class="breakdown-val" id="bd-wear">0%</div><div class="breakdown-bar-wrap"><div class="breakdown-bar" id="bb-wear" style="width:0%;background:var(--cyan)"></div></div></div>
+        <div class="breakdown-item"><div class="breakdown-name">THERMAL FACTOR</div><div class="breakdown-val" id="bd-temp">0%</div><div class="breakdown-bar-wrap"><div class="breakdown-bar" id="bb-temp" style="width:0%;background:var(--cyan)"></div></div></div>
+      </div>
+    </div>
+
+    <div class="fade-in fade-in-3">
+      <div class="section-label">PREDICTION OUTPUT</div>
+      <div class="risk-display" id="riskDisplay">
+        <div class="corner-tl"></div>
+        <div class="risk-label">FAILURE PROBABILITY</div>
+        <div class="risk-percent" id="riskPercent">—</div>
+        <div class="risk-status" id="riskStatus" style="color:var(--text-dim)">AWAITING INPUT</div>
+        <div class="risk-bar-wrap"><div class="risk-bar" id="riskBar"></div></div>
+        <div class="risk-warnings" id="riskWarnings"></div>
+      </div>
+      <div style="margin-top:20px">
+        <div class="section-label">ANALYSIS LOG</div>
+        <div id="logList" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text-dim);padding:12px;border:1px solid var(--border);text-align:center">NO RECORDS — PRESS ANALYZE TO BEGIN</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="fade-in">
+    <div class="footer-text">SENTINEL IoT MONITOR — AI4I2020 DATASET — RF MODEL</div>
+    <div class="footer-text" id="pred-count">PREDICTIONS: 0</div>
+  </footer>
+</div>
+
+<script>
+let machineType=1, predCount=0, waveT=0;
+
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=[n.getHours(),n.getMinutes(),n.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');}
+setInterval(updateClock,1000); updateClock();
+
+const units={air:'K',proc:'K',rpm:'rpm',torque:'Nm',wear:'min'};
+function updateSlider(key,val){
+  const v=parseFloat(val),u=units[key];
+  document.getElementById(`dv-${key}`).textContent=`${Number.isInteger(v)?v:v.toFixed(1)} ${u}`;
+  updateMetricCards();
+}
+function setType(btn){document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');machineType=parseInt(btn.dataset.val);}
+
+function updateMetricCards(){
+  const air=parseFloat(document.getElementById('sl-air').value);
+  const proc=parseFloat(document.getElementById('sl-proc').value);
+  const rpm=parseFloat(document.getElementById('sl-rpm').value);
+  const torque=parseFloat(document.getElementById('sl-torque').value);
+  const wear=parseFloat(document.getElementById('sl-wear').value);
+  document.getElementById('m-air').innerHTML=`${air.toFixed(1)}<span class="metric-unit">K</span>`;
+  document.getElementById('m-proc').innerHTML=`${proc.toFixed(1)}<span class="metric-unit">K</span>`;
+  document.getElementById('m-rpm').innerHTML=`${Math.round(rpm)}<span class="metric-unit">rpm</span>`;
+  document.getElementById('m-torque').innerHTML=`${torque.toFixed(1)}<span class="metric-unit">Nm</span>`;
+  document.getElementById('m-wear').innerHTML=`${Math.round(wear)}<span class="metric-unit">min</span>`;
+  document.getElementById('mb-air').style.width=`${((air-295)/20)*100}%`;
+  document.getElementById('mb-proc').style.width=`${((proc-305)/20)*100}%`;
+  document.getElementById('mb-rpm').style.width=`${((rpm-1168)/(2886-1168))*100}%`;
+  document.getElementById('mb-torque').style.width=`${((torque-3.8)/72.8)*100}%`;
+  document.getElementById('mb-wear').style.width=`${(wear/253)*100}%`;
+}
+updateMetricCards();
+
+// Waveform
+const canvas=document.getElementById('waveCanvas');
+const ctx=canvas.getContext('2d');
+function drawWave(){
+  const W=canvas.offsetWidth,H=120;
+  canvas.width=W; canvas.height=H;
+  const torque=parseFloat(document.getElementById('sl-torque').value);
+  const rpm=parseFloat(document.getElementById('sl-rpm').value);
+  const noise=(torque/76.6)*0.6+0.1, freq=rpm/1500;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(0,229,255,0.05)'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.beginPath(); ctx.strokeStyle='rgba(0,229,255,0.6)'; ctx.lineWidth=1.5;
+  ctx.shadowColor='#00E5FF'; ctx.shadowBlur=6;
+  for(let x=0;x<W;x++){
+    const t=(x/W)*Math.PI*2*freq*3+waveT;
+    const amp=H*0.3*noise;
+    const y=H/2+Math.sin(t)*amp+Math.sin(t*2.3+1)*amp*0.3+(Math.random()-0.5)*amp*0.1;
+    x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur=0; ctx.lineTo(W,H); ctx.lineTo(0,H);
+  ctx.fillStyle='rgba(0,229,255,0.04)'; ctx.fill();
+  waveT+=0.06; requestAnimationFrame(drawWave);
+}
+drawWave();
+
+// Analyze — calls Flask API
+async function analyze(){
+  const btn=document.getElementById('analyzeBtn');
+  const btnText=document.getElementById('btn-text');
+  btnText.textContent='⬡ ANALYZING...'; btn.classList.add('loading');
+
+  const air=parseFloat(document.getElementById('sl-air').value);
+  const proc=parseFloat(document.getElementById('sl-proc').value);
+  const rpm=parseFloat(document.getElementById('sl-rpm').value);
+  const torque=parseFloat(document.getElementById('sl-torque').value);
+  const wear=parseFloat(document.getElementById('sl-wear').value);
+
+  try {
+    const res = await fetch('/predict', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:machineType, air, proc, rpm, torque, wear})
+    });
+    const data = await res.json();
+    const prob = data.probability;
+    const pct = (prob*100).toFixed(1);
+    const level = prob>0.6?'danger':prob>0.3?'warning':'normal';
+    const typeNames=['L','M','H'];
+
+    const rd=document.getElementById('riskDisplay');
+    const rp=document.getElementById('riskPercent');
+    const rs=document.getElementById('riskStatus');
+    const rb=document.getElementById('riskBar');
+    rd.className=`risk-display ${level}`;
+    rp.className=`risk-percent ${level}`;
+    rp.textContent=`${pct}%`;
+    rb.className=`risk-bar ${level}`;
+    rb.style.width=`${pct}%`;
+    const statusMap={normal:'🟢 NORMAL — OPERATING NOMINAL',warning:'🟡 WARNING — INSPECTION ADVISED',danger:'🔴 HIGH RISK — FAILURE IMMINENT'};
+    const colorMap={normal:'var(--green)',warning:'var(--amber)',danger:'var(--red)'};
+    rs.textContent=statusMap[level]; rs.style.color=colorMap[level];
+
+    const warns=[];
+    if(rpm>2500) warns.push(`▸ RPM CRITICAL: ${Math.round(rpm)} > 2500`);
+    if(torque>60) warns.push(`▸ TORQUE EXCESS: ${torque.toFixed(1)} Nm > 60`);
+    if(wear>200) warns.push(`▸ TOOL DEGRADED: ${Math.round(wear)} min > 200`);
+    if(proc-air>15) warns.push(`▸ THERMAL DELTA: ${(proc-air).toFixed(1)} K`);
+    document.getElementById('riskWarnings').innerHTML=warns.join('<br>')||'▸ ALL PARAMETERS NOMINAL';
+
+    document.getElementById('m-risk').innerHTML=`${pct}<span class="metric-unit">%</span>`;
+    document.getElementById('m-risk').style.color=colorMap[level];
+    document.getElementById('mb-risk').style.width=`${pct}%`;
+    document.getElementById('mb-risk').style.background=colorMap[level];
+
+    document.getElementById('breakdown').style.display='grid';
+    const factors={torque:Math.min(100,Math.round((torque/76.6)*100)),rpm:Math.min(100,Math.round(((rpm-1168)/(2886-1168))*100)),wear:Math.min(100,Math.round((wear/253)*100)),temp:Math.max(0,Math.min(100,Math.round(((proc-air-5)/15)*100)))};
+    Object.entries(factors).forEach(([k,v])=>{
+      document.getElementById(`bd-${k}`).textContent=`${v}%`;
+      const bar=document.getElementById(`bb-${k}`);
+      bar.style.background=v>70?colorMap[level]:'var(--cyan)';
+      setTimeout(()=>{bar.style.width=`${v}%`;},50);
+    });
+
+    addLog(typeNames[machineType],rpm,torque,wear,pct,level,colorMap);
+    predCount++;
+    document.getElementById('pred-count').textContent=`PREDICTIONS: ${predCount}`;
+  } catch(e) {
+    alert('เกิดข้อผิดพลาด: '+e.message);
+  }
+  btnText.textContent='⬡ ANALYZE RISK'; btn.classList.remove('loading');
+}
+
+function addLog(type,rpm,torque,wear,pct,level,colorMap){
+  const logList=document.getElementById('logList');
+  const statusMap={normal:'NORMAL',warning:'WARNING',danger:'HIGH RISK'};
+  const now=new Date();
+  const time=[now.getHours(),now.getMinutes(),now.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+  const item=document.createElement('div');
+  item.style.cssText=`background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${colorMap[level]};padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);`;
+  item.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:${colorMap[level]};font-weight:bold">${statusMap[level]}</span><span>${time}</span></div><div style="color:var(--text);font-size:0.65rem;margin-bottom:2px">TYPE:<b style="color:var(--cyan)">${type}</b> &nbsp;RPM:<b style="color:var(--cyan)">${Math.round(rpm)}</b> &nbsp;TQ:<b style="color:var(--cyan)">${parseFloat(torque).toFixed(1)}Nm</b> &nbsp;WR:<b style="color:var(--cyan)">${Math.round(wear)}min</b></div><div>FAILURE PROB: <b style="color:${colorMap[level]}">${pct}%</b></div>`;
+  if(logList.children.length===1&&logList.children[0].textContent.includes('NO RECORDS')) logList.innerHTML='';
+  logList.insertBefore(item,logList.firstChild);
+  while(logList.children.length>8) logList.removeChild(logList.lastChild);
+}
+</script>
+</body>
+</html>
