@@ -100,6 +100,19 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);displ
 .corner-tl{top:8px;left:8px;border-top:1px solid;border-left:1px solid;}
 .corner-br{bottom:8px;right:8px;border-bottom:1px solid;border-right:1px solid;}
 @media(max-width:600px){.risk-percent{font-size:3.5rem;}.panel{padding:16px;}}
+
+/* ── LOG TOOLBAR ── */
+.log-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.log-filters{display:flex;gap:5px;}
+.filter-btn{padding:4px 9px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:1px;cursor:pointer;transition:all 0.15s;clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);}
+.filter-btn:hover{border-color:var(--cyan-dim);color:var(--cyan-dim);}
+.filter-btn.active{background:var(--cyan-glow);border-color:var(--cyan);color:var(--cyan);}
+.filter-btn.f-normal.active{background:rgba(0,255,136,0.08);border-color:var(--green);color:var(--green);}
+.filter-btn.f-warning.active{background:rgba(255,179,0,0.08);border-color:var(--amber);color:var(--amber);}
+.filter-btn.f-danger.active{background:rgba(255,61,61,0.08);border-color:var(--red);color:var(--red);}
+.export-btn{padding:4px 10px;background:var(--surface2);border:1px solid var(--border-bright);color:var(--cyan-dim);font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:1px;cursor:pointer;transition:all 0.15s;clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);}
+.export-btn:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 8px var(--cyan-glow);}
+.export-btn:active{transform:scale(0.97);}
 </style>
 </head>
 <body>
@@ -199,8 +212,21 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);displ
         <div class="risk-bar-wrap"><div class="risk-bar" id="riskBar"></div></div>
         <div class="risk-warnings" id="riskWarnings"></div>
       </div>
+
       <div style="margin-top:20px">
-        <div class="section-label">ANALYSIS LOG</div>
+        <!-- Log toolbar: filter + export -->
+        <div class="log-toolbar">
+          <div class="section-label" style="margin-bottom:0;flex:none">ANALYSIS LOG</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <div class="log-filters">
+              <button class="filter-btn active" data-filter="all" onclick="setFilter(this)">ALL</button>
+              <button class="filter-btn f-normal" data-filter="normal" onclick="setFilter(this)">NORMAL</button>
+              <button class="filter-btn f-warning" data-filter="warning" onclick="setFilter(this)">WARN</button>
+              <button class="filter-btn f-danger" data-filter="danger" onclick="setFilter(this)">HIGH</button>
+            </div>
+            <button class="export-btn" onclick="exportCSV()">⬇ CSV</button>
+          </div>
+        </div>
         <div id="logList" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;">
           <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text-dim);padding:12px;border:1px solid var(--border);text-align:center">NO RECORDS — PRESS ANALYZE TO BEGIN</div>
         </div>
@@ -216,6 +242,8 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);displ
 
 <script>
 let machineType=1, predCount=0, waveT=0;
+let logData=[];
+let currentFilter='all';
 
 function updateClock(){const n=new Date();document.getElementById('clock').textContent=[n.getHours(),n.getMinutes(),n.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');}
 setInterval(updateClock,1000); updateClock();
@@ -247,7 +275,6 @@ function updateMetricCards(){
 }
 updateMetricCards();
 
-// Waveform
 const canvas=document.getElementById('waveCanvas');
 const ctx=canvas.getContext('2d');
 function drawWave(){
@@ -275,7 +302,48 @@ function drawWave(){
 }
 drawWave();
 
-// Analyze — calls Flask API
+// ── Filter
+function setFilter(btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter=btn.dataset.filter;
+  renderLog();
+}
+
+function renderLog(){
+  const logList=document.getElementById('logList');
+  const filtered=currentFilter==='all'?logData:logData.filter(d=>d.level===currentFilter);
+  if(filtered.length===0){
+    logList.innerHTML=`<div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text-dim);padding:12px;border:1px solid var(--border);text-align:center">NO RECORDS FOR THIS FILTER</div>`;
+    return;
+  }
+  logList.innerHTML='';
+  const colorMap={normal:'var(--green)',warning:'var(--amber)',danger:'var(--red)'};
+  const statusMap={normal:'NORMAL',warning:'WARNING',danger:'HIGH RISK'};
+  filtered.forEach(d=>{
+    const item=document.createElement('div');
+    item.style.cssText=`background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${colorMap[d.level]};padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);`;
+    item.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:${colorMap[d.level]};font-weight:bold">${statusMap[d.level]}</span><span>${d.time}</span></div><div style="color:var(--text);font-size:0.65rem;margin-bottom:2px">TYPE:<b style="color:var(--cyan)">${d.type}</b> &nbsp;RPM:<b style="color:var(--cyan)">${d.rpm}</b> &nbsp;TQ:<b style="color:var(--cyan)">${d.torque}Nm</b> &nbsp;WR:<b style="color:var(--cyan)">${d.wear}min</b></div><div>FAILURE PROB: <b style="color:${colorMap[d.level]}">${d.pct}%</b></div>`;
+    logList.appendChild(item);
+  });
+}
+
+// ── Export CSV
+function exportCSV(){
+  if(logData.length===0){alert('ยังไม่มีข้อมูล กด Analyze ก่อนครับ');return;}
+  const headers=['Time','Type','RPM','Torque_Nm','Wear_min','Air_K','Proc_K','Failure_Prob_%','Level'];
+  const rows=logData.map(d=>[d.time,d.type,d.rpm,d.torque,d.wear,d.air,d.proc,d.pct,d.level.toUpperCase()]);
+  const csv=[headers,...rows].map(r=>r.join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const now=new Date();
+  const fname=`sentinel_log_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.csv`;
+  a.href=url; a.download=fname; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Analyze
 async function analyze(){
   const btn=document.getElementById('analyzeBtn');
   const btnText=document.getElementById('btn-text');
@@ -288,16 +356,14 @@ async function analyze(){
   const wear=parseFloat(document.getElementById('sl-wear').value);
 
   try {
-    const res = await fetch('/predict', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({type:machineType, air, proc, rpm, torque, wear})
-    });
-    const data = await res.json();
-    const prob = data.probability;
-    const pct = (prob*100).toFixed(1);
-    const level = prob>0.6?'danger':prob>0.3?'warning':'normal';
+    const res=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:machineType,air,proc,rpm,torque,wear})});
+    const data=await res.json();
+    const prob=data.probability;
+    const pct=(prob*100).toFixed(1);
+    const level=prob>0.6?'danger':prob>0.3?'warning':'normal';
     const typeNames=['L','M','H'];
+    const colorMap={normal:'var(--green)',warning:'var(--amber)',danger:'var(--red)'};
+    const statusMap={normal:'🟢 NORMAL — OPERATING NOMINAL',warning:'🟡 WARNING — INSPECTION ADVISED',danger:'🔴 HIGH RISK — FAILURE IMMINENT'};
 
     const rd=document.getElementById('riskDisplay');
     const rp=document.getElementById('riskPercent');
@@ -308,8 +374,6 @@ async function analyze(){
     rp.textContent=`${pct}%`;
     rb.className=`risk-bar ${level}`;
     rb.style.width=`${pct}%`;
-    const statusMap={normal:'🟢 NORMAL — OPERATING NOMINAL',warning:'🟡 WARNING — INSPECTION ADVISED',danger:'🔴 HIGH RISK — FAILURE IMMINENT'};
-    const colorMap={normal:'var(--green)',warning:'var(--amber)',danger:'var(--red)'};
     rs.textContent=statusMap[level]; rs.style.color=colorMap[level];
 
     const warns=[];
@@ -333,26 +397,18 @@ async function analyze(){
       setTimeout(()=>{bar.style.width=`${v}%`;},50);
     });
 
-    addLog(typeNames[machineType],rpm,torque,wear,pct,level,colorMap);
+    const now=new Date();
+    const time=[now.getHours(),now.getMinutes(),now.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+    logData.unshift({time,level,pct,type:typeNames[machineType],rpm:Math.round(rpm),torque:torque.toFixed(1),wear:Math.round(wear),air:air.toFixed(1),proc:proc.toFixed(1)});
+    if(logData.length>50) logData.pop();
+    renderLog();
+
     predCount++;
     document.getElementById('pred-count').textContent=`PREDICTIONS: ${predCount}`;
-  } catch(e) {
+  } catch(e){
     alert('เกิดข้อผิดพลาด: '+e.message);
   }
   btnText.textContent='⬡ ANALYZE RISK'; btn.classList.remove('loading');
-}
-
-function addLog(type,rpm,torque,wear,pct,level,colorMap){
-  const logList=document.getElementById('logList');
-  const statusMap={normal:'NORMAL',warning:'WARNING',danger:'HIGH RISK'};
-  const now=new Date();
-  const time=[now.getHours(),now.getMinutes(),now.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
-  const item=document.createElement('div');
-  item.style.cssText=`background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${colorMap[level]};padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);`;
-  item.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:${colorMap[level]};font-weight:bold">${statusMap[level]}</span><span>${time}</span></div><div style="color:var(--text);font-size:0.65rem;margin-bottom:2px">TYPE:<b style="color:var(--cyan)">${type}</b> &nbsp;RPM:<b style="color:var(--cyan)">${Math.round(rpm)}</b> &nbsp;TQ:<b style="color:var(--cyan)">${parseFloat(torque).toFixed(1)}Nm</b> &nbsp;WR:<b style="color:var(--cyan)">${Math.round(wear)}min</b></div><div>FAILURE PROB: <b style="color:${colorMap[level]}">${pct}%</b></div>`;
-  if(logList.children.length===1&&logList.children[0].textContent.includes('NO RECORDS')) logList.innerHTML='';
-  logList.insertBefore(item,logList.firstChild);
-  while(logList.children.length>8) logList.removeChild(logList.lastChild);
 }
 </script>
 </body>
